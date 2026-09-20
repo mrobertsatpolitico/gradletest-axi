@@ -6,16 +6,51 @@ automation. Raw Gradle output never appears on stdout.
 
 ## Install
 
-Build the local command:
+### Go install
+
+With Go 1.27.1 or newer, install the latest public source revision:
+
+```sh
+go install github.com/mrobertsatpolitico/gradletest-axi/cmd/gradletest-axi@latest
+```
+
+Use a semantic version after releases are available by replacing `latest`
+with a tag such as `v1.0.0`.
+
+The binary is written to `GOBIN`, or to the first `GOPATH` entry's `bin`
+directory when `GOBIN` is unset. That directory must be on `PATH`.
+
+### Prebuilt release
+
+Tagged releases provide archives for macOS, Linux, and Windows on amd64 and
+arm64 at the
+[GitHub Releases page](https://github.com/mrobertsatpolitico/gradletest-axi/releases).
+Each release also provides `checksums.txt`.
+
+For example, download and verify the latest Apple Silicon archive with the
+GitHub CLI:
+
+```sh
+gh release download \
+  --repo mrobertsatpolitico/gradletest-axi \
+  --pattern '*_darwin_arm64.tar.gz' \
+  --pattern checksums.txt
+shasum -a 256 --ignore-missing -c checksums.txt
+tar -xzf gradletest-axi_*_darwin_arm64.tar.gz
+mkdir -p ~/.local/bin
+install -m 0755 gradletest-axi ~/.local/bin/gradletest-axi
+```
+
+Use `darwin_x86_64`, `linux_arm64`, or `linux_x86_64` for other Unix
+targets. Windows releases use ZIP archives. The destination directory must be
+on `PATH`.
+
+### Local checkout
+
+Install an unversioned development build from a checkout:
 
 ```sh
 go install ./cmd/gradletest-axi
-```
-
-Or build a versioned binary:
-
-```sh
-go build -ldflags "-X main.version=$(git describe --always --dirty)" -o bin/gradletest-axi ./cmd/gradletest-axi
 ```
 
 ## Use
@@ -128,3 +163,6 @@ go vet ./...
 go test -race ./...
 go build ./cmd/gradletest-axi
 ```
+
+See [CHANGELOG.md](CHANGELOG.md) for curated user-facing changes and
+[Releasing](docs/releases.md) for the tag-driven GitHub Release process.

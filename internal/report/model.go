@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"gradletest-axi/internal/results"
+	"github.com/mrobertsatpolitico/gradletest-axi/internal/results"
 )
 
 const (

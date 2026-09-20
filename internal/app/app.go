@@ -8,12 +8,12 @@ import (
 	"os"
 	"strings"
 
-	"gradletest-axi/internal/cachelog"
-	"gradletest-axi/internal/cli"
-	"gradletest-axi/internal/project"
-	"gradletest-axi/internal/report"
-	"gradletest-axi/internal/results"
-	"gradletest-axi/internal/runner"
+	"github.com/mrobertsatpolitico/gradletest-axi/internal/cachelog"
+	"github.com/mrobertsatpolitico/gradletest-axi/internal/cli"
+	"github.com/mrobertsatpolitico/gradletest-axi/internal/project"
+	"github.com/mrobertsatpolitico/gradletest-axi/internal/report"
+	"github.com/mrobertsatpolitico/gradletest-axi/internal/results"
+	"github.com/mrobertsatpolitico/gradletest-axi/internal/runner"
 )
 
 const commandName = "gradletest-axi"

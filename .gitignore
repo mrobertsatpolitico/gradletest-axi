@@ -1,5 +1,6 @@
 .idea/
 bin/
 coverage.out
+dist/
 /gradletest-axi
 *.test

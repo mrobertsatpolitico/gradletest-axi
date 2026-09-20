@@ -6,11 +6,12 @@ import (
 	"os/signal"
 	"syscall"
 
-	"gradletest-axi/internal/app"
-	"gradletest-axi/internal/report"
+	"github.com/mrobertsatpolitico/gradletest-axi/internal/app"
+	"github.com/mrobertsatpolitico/gradletest-axi/internal/buildinfo"
+	"github.com/mrobertsatpolitico/gradletest-axi/internal/report"
 )
 
-var version = "dev"
+var version string
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -27,7 +28,7 @@ func main() {
 	}
 
 	application := app.Application{
-		Version: version,
+		Version: buildinfo.Version(version),
 		Stdout:  os.Stdout,
 		Stderr:  os.Stderr,
 	}

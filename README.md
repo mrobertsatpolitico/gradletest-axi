@@ -114,9 +114,11 @@ truncated failure output. The tested repository is not modified by logging.
 The command follows [AXI](https://github.com/kunchenguid/axi): content-first
 bare invocation, deterministic structured output, bounded defaults, explicit
 empty/error states, contextual recovery guidance, and full-fidelity data
-available on demand. It intentionally does not act as a general Gradle proxy
-and does not install automatic session hooks, which could run expensive tests
-or surface stale state.
+available on demand. See [AXI principles in gradletest-axi](docs/axi-principles.md)
+for the detailed public behavior behind each principle. The command
+intentionally does not act as a general Gradle proxy and does not install
+automatic session hooks, which could run expensive tests or surface stale
+state.
 
 ## Development
 

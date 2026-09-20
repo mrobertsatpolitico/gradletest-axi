@@ -8,6 +8,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-09-20
+
 ### Added
 
 - A fixed-operation Gradle `test` wrapper that discovers the nearest project
@@ -30,4 +32,5 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - The CLI contract is declared stable for the first `v1.0.0` release.
 - The development, CI, and source-install baseline now requires Go 1.27.1.
 
-[Unreleased]: https://github.com/mrobertsatpolitico/gradletest-axi/commits/main
+[Unreleased]: https://github.com/mrobertsatpolitico/gradletest-axi/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/mrobertsatpolitico/gradletest-axi/releases/tag/v1.0.0

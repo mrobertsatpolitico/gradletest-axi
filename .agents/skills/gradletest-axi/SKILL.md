@@ -30,9 +30,10 @@ gradletest-axi integrationTest -- --tests com.example.WidgetIntegrationTest
 ```
 
 Qualified task paths such as `:service:integrationTest` are supported.
-Alternate tasks must be `Test`-compatible and emit conventional JUnit XML;
-they may run longer when starting test containers. Do not use this wrapper for
-arbitrary non-test Gradle tasks.
+Alternate tasks must be `Test`-compatible and emit Gradle JUnit XML beneath a
+project `build` directory; custom report locations are supported. They may run
+longer when starting test containers. Do not use this wrapper for arbitrary
+non-test Gradle tasks.
 
 Do not infer a test result from stale XML, raw log fragments, or an outer
 terminal's unknown exit status. The response's `exit_code` is authoritative

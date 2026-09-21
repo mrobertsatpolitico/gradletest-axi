@@ -3,8 +3,11 @@ package results
 import (
 	"os"
 	"path/filepath"
+	"reflect"
+	"sort"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestParseFilesAggregatesSuitesAndFailures(t *testing.T) {
@@ -45,7 +48,7 @@ func TestParseFilesAggregatesSuitesAndFailures(t *testing.T) {
 	}
 }
 
-func TestDiscoverFilesSelectsTaskAcrossProjects(t *testing.T) {
+func TestDiscoverFilesFindsReportsAcrossProjectsAndLayouts(t *testing.T) {
 	t.Parallel()
 
 	root := t.TempDir()
@@ -64,13 +67,30 @@ func TestDiscoverFilesSelectsTaskAcrossProjects(t *testing.T) {
 		"integrationTest",
 		`<testsuite><testcase name="integration-b"/></testsuite>`,
 	)
+	custom := writeCustomResult(
+		t,
+		root,
+		"module-c",
+		"integration-test-results",
+		`<testsuite><testcase name="custom"/></testsuite>`,
+	)
 
-	got, err := DiscoverFiles(root, ":service:integrationTest")
+	got, err := DiscoverFiles(root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 2 || got[0] != integrationA || got[1] != integrationB {
-		t.Fatalf("DiscoverFiles() = %q, want [%q %q]; unit report was %q", got, integrationA, integrationB, unit)
+	want := []string{unit, integrationA, integrationB, custom}
+	sort.Strings(want)
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("DiscoverFiles() = %q, want %q", got, want)
+	}
+
+	conventional, err := DiscoverConventionalFiles(root, ":service:integrationTest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(conventional) != 2 || conventional[0] != integrationA || conventional[1] != integrationB {
+		t.Fatalf("DiscoverConventionalFiles() = %q, want [%q %q]", conventional, integrationA, integrationB)
 	}
 }
 
@@ -91,7 +111,7 @@ func TestChangedFilesExcludesStaleReports(t *testing.T) {
 	unit := writeResult(t, root, "unit", `<testsuite><testcase name="unit"/></testsuite>`)
 	stale := writeTaskResult(t, root, "stale", "integrationTest", `<testsuite><testcase name="old"/></testsuite>`)
 	changed := writeTaskResult(t, root, "changed", "integrationTest", `<testsuite><testcase name="before"/></testsuite>`)
-	before, err := TakeSnapshot(root, "integrationTest")
+	before, err := TakeSnapshot(root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +120,7 @@ func TestChangedFilesExcludesStaleReports(t *testing.T) {
 	}
 	fresh := writeTaskResult(t, root, "fresh", "integrationTest", `<testsuite><testcase name="new"/></testsuite>`)
 
-	files, err := DiscoverFiles(root, "integrationTest")
+	files, err := DiscoverFiles(root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,6 +133,37 @@ func TestChangedFilesExcludesStaleReports(t *testing.T) {
 	}
 }
 
+func TestChangedFilesDetectsIdenticalRewrite(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	content := `<testsuite><testcase name="same"/></testsuite>`
+	report := writeCustomResult(t, root, "", "integration-test-results", content)
+	before, err := TakeSnapshot(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(report, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	modified := time.Now().Add(time.Second)
+	if err := os.Chtimes(report, modified, modified); err != nil {
+		t.Fatal(err)
+	}
+
+	files, err := DiscoverFiles(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := ChangedFiles(before, files)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0] != report {
+		t.Fatalf("ChangedFiles() = %q, want [%q]", got, report)
+	}
+}
+
 func writeResult(t *testing.T, root, module, content string) string {
 	t.Helper()
 	return writeTaskResult(t, root, module, "test", content)
@@ -121,6 +172,17 @@ func writeResult(t *testing.T, root, module, content string) string {
 func writeTaskResult(t *testing.T, root, module, task, content string) string {
 	t.Helper()
 	directory := filepath.Join(root, module, "build", "test-results", task)
+	return writeResultAt(t, directory, content)
+}
+
+func writeCustomResult(t *testing.T, root, module, directoryName, content string) string {
+	t.Helper()
+	directory := filepath.Join(root, module, "build", directoryName)
+	return writeResultAt(t, directory, content)
+}
+
+func writeResultAt(t *testing.T, directory, content string) string {
+	t.Helper()
 	if err := os.MkdirAll(directory, 0o755); err != nil {
 		t.Fatal(err)
 	}

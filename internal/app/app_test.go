@@ -77,11 +77,70 @@ XML
 	}
 }
 
+func TestApplicationUsesCurrentJUnitFromCustomDirectory(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	writeJUnit(t, root, `<testsuite><testcase classname="OldTest" name="fails"><failure message="stale failure"/></testcase></testsuite>`)
+	writeGradlew(t, root, `#!/bin/sh
+mkdir -p build/integration-test-results
+cat > build/integration-test-results/TEST-pass.xml <<'XML'
+<testsuite><testcase classname="WidgetTest" name="passes" time="0.25"/></testsuite>
+XML
+`)
+	stdout, _, exitCode := execute(t, root, []string{"integrationTest"})
+	if exitCode != 0 {
+		t.Fatalf("Execute() exit = %d, output:\n%s", exitCode, stdout)
+	}
+	document := decodeDocument(t, stdout)
+	assertField(t, document, "status", "passed")
+	assertField(t, document, "kind", "test")
+	assertField(t, document, "report", "junit-current")
+	if _, ok := document["warning"]; ok {
+		t.Fatalf("custom JUnit result produced warning:\n%s", stdout)
+	}
+	tests, ok := document["tests"].(map[string]any)
+	if !ok {
+		t.Fatalf("tests = %T, want map", document["tests"])
+	}
+	assertField(t, tests, "total", "1")
+	assertField(t, tests, "passed", "1")
+}
+
+func TestApplicationUsesFreshJUnitFailureFromCustomDirectory(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	writeGradlew(t, root, `#!/bin/sh
+mkdir -p build/integration-test-results
+cat > build/integration-test-results/TEST-fail.xml <<'XML'
+<testsuite><testcase classname="WidgetTest" name="fails"><failure message="expected true">at WidgetTest.fails(WidgetTest.kt:9)</failure></testcase></testsuite>
+XML
+exit 1
+`)
+	stdout, _, exitCode := execute(t, root, []string{"integrationTest"})
+	if exitCode != 1 {
+		t.Fatalf("Execute() exit = %d, output:\n%s", exitCode, stdout)
+	}
+	document := decodeDocument(t, stdout)
+	assertField(t, document, "status", "failed")
+	assertField(t, document, "kind", "test")
+	assertField(t, document, "report", "junit-fresh")
+	if _, ok := document["error"]; ok {
+		t.Fatalf("JUnit-backed custom failure unexpectedly reported a build error:\n%s", stdout)
+	}
+}
+
 func TestApplicationDoesNotReuseStaleJUnitOnBuildFailure(t *testing.T) {
 	t.Parallel()
 
 	root := t.TempDir()
 	writeJUnit(t, root, `<testsuite><testcase classname="OldTest" name="fails"><failure message="stale failure"/></testcase></testsuite>`)
+	writeJUnitInDirectory(
+		t,
+		filepath.Join(root, "build", "integration-test-results"),
+		`<testsuite><testcase classname="OldCustomTest" name="fails"><failure message="stale custom failure"/></testcase></testsuite>`,
+	)
 	writeGradlew(t, root, `#!/bin/sh
 printf '* What went wrong:\nCompilation failed\n\n* Try:\n--stacktrace\n'
 exit 1
@@ -260,6 +319,11 @@ func writeGradlew(t *testing.T, root, content string) {
 func writeJUnit(t *testing.T, root, content string) {
 	t.Helper()
 	directory := filepath.Join(root, "build", "test-results", "test")
+	writeJUnitInDirectory(t, directory, content)
+}
+
+func writeJUnitInDirectory(t *testing.T, directory, content string) {
+	t.Helper()
 	if err := os.MkdirAll(directory, 0o755); err != nil {
 		t.Fatal(err)
 	}

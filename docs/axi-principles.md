@@ -64,10 +64,12 @@ tests” as empty stdout.
 Missing and unreadable result data are different states. `report: unavailable`
 identifies an absent trusted report, `report: malformed` identifies reports
 that could not be parsed, and a `-partial` provenance suffix identifies a mix
-of usable and unusable reports. Discovery is limited to the selected task's
-conventional `build/test-results/<task>/` directories. On a failed Gradle run,
-only new or changed JUnit XML is trusted, so an old report cannot silently
-become the current answer.
+of usable and unusable reports. Discovery prefers JUnit XML created or rewritten
+by the current invocation anywhere beneath project `build` directories, so
+custom Gradle report locations remain machine-readable. On a failed Gradle run,
+only those current files are trusted, so an old report cannot silently become
+the current answer. A successful run with no changed XML falls back to the
+selected task's conventional `build/test-results/<task>/` directories.
 
 ## 6. Structured errors & exit codes
 
@@ -119,10 +121,10 @@ Agents can select another `Test`-compatible task with one positional argument,
 including a qualified path such as `:service:integrationTest`, and narrow that
 operation by passing Gradle test options after `--`. For example,
 `gradletest-axi integrationTest -- --tests com.example.WidgetTest`. Alternate
-tasks retain Gradle's conventional test input and JUnit output contract but
-may take longer when they start containers. Help and version information
-remain explicit requests rather than replacing the bare invocation's live test
-result.
+tasks retain Gradle's test input and JUnit XML contract, including builds that
+configure a custom report directory, but may take longer when they start
+containers. Help and version information remain explicit requests rather than
+replacing the bare invocation's live test result.
 
 ## 9. Contextual disclosure
 

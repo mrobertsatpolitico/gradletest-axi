@@ -60,7 +60,7 @@ func (a Application) Execute(ctx context.Context, args []string, workingDirector
 		return a.renderError(err.Error(), 1, []string{"Ensure the user cache directory is writable"})
 	}
 
-	before, snapshotErr := results.TakeSnapshot(gradleProject.Root, options.Task)
+	before, snapshotErr := results.TakeSnapshot(gradleProject.Root)
 	fmt.Fprintf(a.stderr(), "gradletest-axi: running Gradle task %s\n", options.Task)
 	runResult := runner.Run(ctx, runner.Command{
 		Executable: gradleProject.Wrapper,
@@ -120,16 +120,17 @@ func buildDocument(input buildInput) (report.Document, int) {
 		return document, 1
 	}
 
-	files, discoveryErr := results.DiscoverFiles(input.Root, input.Task)
-	selectedFiles := files
+	files, discoveryErr := results.DiscoverFiles(input.Root)
+	var selectedFiles []string
 	provenance := "current"
 	if input.Run.ExitCode != 0 {
 		provenance = "fresh"
-		if input.SnapshotError != nil {
-			selectedFiles = nil
-		} else if discoveryErr == nil {
-			selectedFiles, discoveryErr = results.ChangedFiles(input.Snapshot, files)
-		}
+	}
+	if discoveryErr == nil && input.SnapshotError == nil {
+		selectedFiles, discoveryErr = results.ChangedFiles(input.Snapshot, files)
+	}
+	if discoveryErr == nil && len(selectedFiles) == 0 && input.Run.ExitCode == 0 {
+		selectedFiles, discoveryErr = results.DiscoverConventionalFiles(input.Root, input.Task)
 	}
 
 	aggregate := results.Aggregate{}

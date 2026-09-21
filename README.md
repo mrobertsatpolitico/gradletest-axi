@@ -71,9 +71,8 @@ gradletest-axi scraperTest
 ```
 
 Alternate tasks may take longer when they start containers or other external
-fixtures. They must accept the same Gradle test inputs and write conventional
-JUnit XML beneath `build/test-results/<task>/`; `gradletest-axi` does not
-validate this contract before execution.
+fixtures. They must accept the same Gradle test inputs and write Gradle JUnit
+XML named `TEST-*.xml` beneath a project `build` directory.
 
 Qualified task paths are also supported:
 
@@ -81,8 +80,8 @@ Qualified task paths are also supported:
 gradletest-axi :service:integrationTest
 ```
 
-For a qualified path, the final component selects the report directory. Pass
-arguments to the selected task after `--`:
+For a qualified path, the final component selects the conventional fallback
+report directory. Pass arguments to the selected task after `--`:
 
 ```sh
 gradletest-axi -- --tests com.example.WidgetTest
@@ -145,8 +144,11 @@ The default failure response includes at most five deterministically ordered
 failures and truncates long messages. `--full` removes both limits. Missing,
 malformed, or only partially readable JUnit XML is explicit; a failed Gradle
 run only trusts reports that are new or changed since launch, preventing stale
-results from being presented as the current failure. Report discovery is
-limited to the selected task's conventional result directories.
+results from being presented as the current failure. Reports created or
+rewritten by the current invocation are discovered across project `build`
+directories, including custom Gradle report locations. When a successful task
+leaves reports untouched, discovery falls back to the selected task's
+conventional `build/test-results/<task>/` directories.
 
 The fields `exit_code` and `gradle_exit` make both the wrapper decision and the
 child process result authoritative even when an outer execution harness cannot

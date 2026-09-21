@@ -8,6 +8,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Discover JUnit XML created or rewritten by the current Gradle invocation in
+  custom report directories beneath project `build` trees.
+
 ## [1.1.0] - 2026-09-21
 
 ### Added

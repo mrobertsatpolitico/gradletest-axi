@@ -1,8 +1,9 @@
 # gradletest-axi
 
-`gradletest-axi` runs the nearest Gradle project's fixed `test` task and emits
-one compact [TOON](https://github.com/toon-format/toon) document for agents and
-automation. Raw Gradle output never appears on stdout.
+`gradletest-axi` runs one Gradle `Test`-compatible task in the nearest project
+and emits one compact [TOON](https://github.com/toon-format/toon) document for
+agents and automation. The task defaults to `test`; raw Gradle output never
+appears on stdout.
 
 ## Install
 
@@ -55,26 +56,48 @@ go install ./cmd/gradletest-axi
 
 ## Use
 
-Run all tests from anywhere beneath a project containing `gradlew`:
+Run the default `test` task from anywhere beneath a project containing
+`gradlew`:
 
 ```sh
 gradletest-axi
 ```
 
-Pass arguments to Gradle's fixed `test` task after `--`:
+Select another `Test`-compatible task with the optional positional parameter:
+
+```sh
+gradletest-axi integrationTest
+gradletest-axi scraperTest
+```
+
+Alternate tasks may take longer when they start containers or other external
+fixtures. They must accept the same Gradle test inputs and write conventional
+JUnit XML beneath `build/test-results/<task>/`; `gradletest-axi` does not
+validate this contract before execution.
+
+Qualified task paths are also supported:
+
+```sh
+gradletest-axi :service:integrationTest
+```
+
+For a qualified path, the final component selects the report directory. Pass
+arguments to the selected task after `--`:
 
 ```sh
 gradletest-axi -- --tests com.example.WidgetTest
+gradletest-axi integrationTest -- --tests com.example.WidgetIntegrationTest
 ```
 
 Show every failure and complete JUnit failure text:
 
 ```sh
-gradletest-axi --full -- --tests com.example.WidgetTest
+gradletest-axi integrationTest --full -- --tests com.example.WidgetIntegrationTest
 ```
 
 Wrapper flags are `--full`, `--help`/`-h`, and `--version`/`-v`. Unknown
-wrapper arguments are usage errors.
+wrapper arguments, more than one task, and unsafe task paths are usage errors.
+Wrapper flags may appear before or after the task.
 
 ## Output contract
 
@@ -84,6 +107,7 @@ to stderr. A successful result resembles:
 ```toon
 status: passed
 kind: test
+task: test
 exit_code: 0
 gradle_exit: 0
 duration_ms: 824
@@ -101,6 +125,7 @@ A failing result with two JUnit-derived failures resembles:
 ```toon
 status: failed
 kind: test
+task: integrationTest
 exit_code: 1
 gradle_exit: 1
 duration_ms: 1096
@@ -120,7 +145,8 @@ The default failure response includes at most five deterministically ordered
 failures and truncates long messages. `--full` removes both limits. Missing,
 malformed, or only partially readable JUnit XML is explicit; a failed Gradle
 run only trusts reports that are new or changed since launch, preventing stale
-results from being presented as the current failure.
+results from being presented as the current failure. Report discovery is
+limited to the selected task's conventional result directories.
 
 The fields `exit_code` and `gradle_exit` make both the wrapper decision and the
 child process result authoritative even when an outer execution harness cannot
@@ -153,7 +179,7 @@ available on demand. See [AXI principles in gradletest-axi](docs/axi-principles.
 for the detailed public behavior behind each principle. The command
 intentionally does not act as a general Gradle proxy and does not install
 automatic session hooks, which could run expensive tests or surface stale
-state.
+state. It runs exactly one `Test`-compatible task per invocation.
 
 ## Development
 

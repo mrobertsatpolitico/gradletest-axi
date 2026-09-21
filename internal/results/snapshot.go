@@ -8,14 +8,15 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 )
 
 type Fingerprint [sha256.Size]byte
 
 type Snapshot map[string]Fingerprint
 
-func TakeSnapshot(root string) (Snapshot, error) {
-	files, err := DiscoverFiles(root)
+func TakeSnapshot(root, task string) (Snapshot, error) {
+	files, err := DiscoverFiles(root, task)
 	if err != nil {
 		return nil, err
 	}
@@ -30,7 +31,11 @@ func TakeSnapshot(root string) (Snapshot, error) {
 	return snapshot, nil
 }
 
-func DiscoverFiles(root string) ([]string, error) {
+func DiscoverFiles(root, task string) ([]string, error) {
+	reportTask := task
+	if separator := strings.LastIndex(task, ":"); separator >= 0 {
+		reportTask = task[separator+1:]
+	}
 	var files []string
 	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -46,7 +51,7 @@ func DiscoverFiles(root string) ([]string, error) {
 			return nil
 		}
 
-		matches, globErr := filepath.Glob(filepath.Join(path, "test-results", "test", "TEST-*.xml"))
+		matches, globErr := filepath.Glob(filepath.Join(path, "test-results", reportTask, "TEST-*.xml"))
 		if globErr != nil {
 			return fmt.Errorf("find JUnit XML below %s: %w", path, globErr)
 		}

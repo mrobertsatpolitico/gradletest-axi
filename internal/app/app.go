@@ -60,11 +60,11 @@ func (a Application) Execute(ctx context.Context, args []string, workingDirector
 		return a.renderError(err.Error(), 1, []string{"Ensure the user cache directory is writable"})
 	}
 
-	before, snapshotErr := results.TakeSnapshot(gradleProject.Root)
-	fmt.Fprintln(a.stderr(), "gradletest-axi: running Gradle tests")
+	before, snapshotErr := results.TakeSnapshot(gradleProject.Root, options.Task)
+	fmt.Fprintf(a.stderr(), "gradletest-axi: running Gradle task %s\n", options.Task)
 	runResult := runner.Run(ctx, runner.Command{
 		Executable: gradleProject.Wrapper,
-		Args:       append([]string{"test", "--console=plain"}, options.Passthrough...),
+		Args:       append([]string{options.Task, "--console=plain"}, options.Passthrough...),
 		Directory:  gradleProject.Root,
 	}, logFile)
 	closeErr := logFile.Close()
@@ -72,6 +72,7 @@ func (a Application) Execute(ctx context.Context, args []string, workingDirector
 
 	document, exitCode := buildDocument(buildInput{
 		Run:           runResult,
+		Task:          options.Task,
 		Full:          options.Full,
 		Root:          gradleProject.Root,
 		LogPath:       logPath,
@@ -88,6 +89,7 @@ func (a Application) Execute(ctx context.Context, args []string, workingDirector
 
 type buildInput struct {
 	Run           runner.Result
+	Task          string
 	Full          bool
 	Root          string
 	LogPath       string
@@ -101,6 +103,7 @@ func buildDocument(input buildInput) (report.Document, int) {
 	document := report.Document{
 		Duration: input.Run.Duration,
 		Report:   "unavailable",
+		Task:     input.Task,
 	}
 	if input.Run.HasExitCode {
 		gradleExit := input.Run.ExitCode
@@ -117,7 +120,7 @@ func buildDocument(input buildInput) (report.Document, int) {
 		return document, 1
 	}
 
-	files, discoveryErr := results.DiscoverFiles(input.Root)
+	files, discoveryErr := results.DiscoverFiles(input.Root, input.Task)
 	selectedFiles := files
 	provenance := "current"
 	if input.Run.ExitCode != 0 {
@@ -158,7 +161,7 @@ func buildDocument(input buildInput) (report.Document, int) {
 		if document.ExitCode < 128 {
 			document.ExitCode = 130
 		}
-		document.Error = "Gradle test execution was interrupted"
+		document.Error = fmt.Sprintf("Gradle task %q was interrupted", input.Task)
 	case aggregate.Failed > 0:
 		document.Status = "failed"
 		document.Kind = "test"
@@ -180,13 +183,19 @@ func buildDocument(input buildInput) (report.Document, int) {
 		document.Log = input.LogPath
 	}
 	if document.Truncated {
-		document.Help = append(document.Help, "Run `gradletest-axi --full` with the same test filter to see all failure details")
+		document.Help = append(
+			document.Help,
+			fmt.Sprintf("Run `gradletest-axi %s --full` with the same test filter to see all failure details", input.Task),
+		)
 	}
 	if needsLog {
 		document.Help = append(document.Help, fmt.Sprintf("Inspect `%s` for complete Gradle output", input.LogPath))
 	}
 	if document.Tests != nil && document.Tests.Total == 0 {
-		document.Help = append(document.Help, "0 tests were reported; verify the test filter if tests were expected")
+		document.Help = append(
+			document.Help,
+			fmt.Sprintf("0 tests were reported for task %q; verify the test filter if tests were expected", input.Task),
+		)
 	}
 	return document, document.ExitCode
 }
@@ -225,17 +234,18 @@ func (a Application) cacheStore() (cachelog.Store, error) {
 func (a Application) renderHelp() int {
 	document := report.HelpDocument{
 		Command:     commandName,
-		Description: "Run the nearest Gradle project's test task and return a compact AXI result",
+		Description: "Run one Gradle Test-compatible task and return a compact AXI result",
 		Usage:       cli.Usage,
 		Flags: []report.Flag{
 			{Flag: "--full", Description: "include every failure and complete JUnit failure text"},
 			{Flag: "--help, -h", Description: "show this concise reference"},
 			{Flag: "--version, -v", Description: "show the installed version"},
-			{Flag: "--", Description: "pass remaining arguments to the fixed Gradle test task"},
+			{Flag: "--", Description: "pass remaining arguments to the selected Gradle test task"},
 		},
 		Help: []string{
-			"Run `gradletest-axi` to execute tests",
-			"Run `gradletest-axi -- --tests ExampleTest` to filter tests",
+			"Run `gradletest-axi` to execute the default `test` task",
+			"Run `gradletest-axi integrationTest` to select another Test-compatible task",
+			"Run `gradletest-axi scraperTest -- --tests ExampleTest` to filter that task",
 		},
 	}
 	if err := report.Render(a.stdout(), document); err != nil {

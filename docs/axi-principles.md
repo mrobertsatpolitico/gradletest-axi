@@ -20,9 +20,9 @@ filtering banners, stack traces, download progress, or task logs.
 ## 2. Minimal default schemas
 
 The top level contains only the fields needed to decide what happened:
-`status`, `kind`, the wrapper `exit_code`, the child `gradle_exit` when
-available, elapsed time, and report provenance. Optional sections appear only
-when they carry information for that result.
+`status`, `kind`, the selected `task`, the wrapper `exit_code`, the child
+`gradle_exit` when available, elapsed time, and report provenance. Optional
+sections appear only when they carry information for that result.
 
 Test aggregates contain total, passed, failed, and skipped counts plus elapsed
 test time. Each failure contains only its test name, message, and a location
@@ -64,9 +64,10 @@ tests” as empty stdout.
 Missing and unreadable result data are different states. `report: unavailable`
 identifies an absent trusted report, `report: malformed` identifies reports
 that could not be parsed, and a `-partial` provenance suffix identifies a mix
-of usable and unusable reports. On a failed Gradle run, only new or changed
-JUnit XML is trusted, so an old report cannot silently become the current
-answer.
+of usable and unusable reports. Discovery is limited to the selected task's
+conventional `build/test-results/<task>/` directories. On a failed Gradle run,
+only new or changed JUnit XML is trusted, so an old report cannot silently
+become the current answer.
 
 ## 6. Structured errors & exit codes
 
@@ -75,10 +76,11 @@ output stays in the cache log. Wrapper errors translate the actionable problem
 and provide relevant recovery guidance rather than leaking an unbounded child
 process transcript.
 
-Wrapper flags are validated before Gradle starts. Unknown flags and arguments
-fail loudly with exit code 2 and include valid usage; Gradle test arguments
-must be placed after `--`. Execution is non-interactive, and the fixed `test`
-task is always part of the child command.
+Wrapper flags and the optional positional task are validated before Gradle
+starts. Unknown flags, additional positionals, and unsafe task paths fail
+loudly with exit code 2 and include valid usage; Gradle test arguments must be
+placed after `--`. Execution is non-interactive and runs exactly one selected
+task, defaulting to `test`.
 
 Exit codes have a stable meaning:
 
@@ -110,13 +112,17 @@ test context.
 
 Running `gradletest-axi` with no arguments performs the useful operation rather
 than printing a usage manual. It walks upward to the nearest executable Gradle
-wrapper, runs the fixed `test` task with plain console mode, and returns the
+wrapper, runs the default `test` task with plain console mode, and returns the
 structured result.
 
-Agents can narrow that operation by passing Gradle test options after `--`, for
-example `gradletest-axi -- --tests com.example.WidgetTest`. Help and version
-information remain explicit requests rather than replacing the bare
-invocation's live test result.
+Agents can select another `Test`-compatible task with one positional argument,
+including a qualified path such as `:service:integrationTest`, and narrow that
+operation by passing Gradle test options after `--`. For example,
+`gradletest-axi integrationTest -- --tests com.example.WidgetTest`. Alternate
+tasks retain Gradle's conventional test input and JUnit output contract but
+may take longer when they start containers. Help and version information
+remain explicit requests rather than replacing the bare invocation's live test
+result.
 
 ## 9. Contextual disclosure
 
@@ -139,9 +145,9 @@ irrelevant boilerplate.
 
 `gradletest-axi --help` and `gradletest-axi -h` return the same concise TOON
 reference: the command's purpose, canonical usage, supported wrapper flags,
-the `--` separator, and examples for a normal run and a filtered run. The tool
-has one fixed operation and no subcommand tree, so there is one predictable
-help surface.
+the optional task, the `--` separator, and examples for default, alternate,
+and filtered runs. The tool has one focused operation and no subcommand tree,
+so there is one predictable help surface.
 
 Usage errors embed enough of that contract to self-correct without a separate
 help call. `gradletest-axi --version` and `gradletest-axi -v` provide the

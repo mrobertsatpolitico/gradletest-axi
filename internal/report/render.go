@@ -64,6 +64,7 @@ func documentObject(document Document) toon.Object {
 	fields := []toon.Field{
 		{Key: "status", Value: document.Status},
 		{Key: "kind", Value: document.Kind},
+		{Key: "task", Value: document.Task},
 		{Key: "exit_code", Value: document.ExitCode},
 	}
 	if document.GradleExit != nil {

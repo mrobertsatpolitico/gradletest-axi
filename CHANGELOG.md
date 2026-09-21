@@ -8,6 +8,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- An optional positional Gradle `Test` task, including qualified task paths,
+  with `test` preserved as the default.
+- Task-aware JUnit discovery and a self-describing `task` field in execution
+  results.
+
 ## [1.0.0] - 2026-09-20
 
 ### Added

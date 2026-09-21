@@ -17,6 +17,7 @@ const (
 type Document struct {
 	Status     string
 	Kind       string
+	Task       string
 	ExitCode   int
 	GradleExit *int
 	Duration   time.Duration

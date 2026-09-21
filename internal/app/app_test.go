@@ -14,7 +14,7 @@ import (
 	toon "github.com/toon-format/toon-go"
 )
 
-func TestApplicationPassesFixedTaskArgumentsAndIsolatesGradleNoise(t *testing.T) {
+func TestApplicationPassesSelectedTaskArgumentsAndIsolatesGradleNoise(t *testing.T) {
 	t.Parallel()
 
 	root := t.TempDir()
@@ -22,30 +22,57 @@ func TestApplicationPassesFixedTaskArgumentsAndIsolatesGradleNoise(t *testing.T)
 printf '%s\n' "$@" > args.txt
 printf 'raw stdout noise\n'
 printf 'raw stderr noise\n' >&2
-mkdir -p build/test-results/test
-cat > build/test-results/test/TEST-pass.xml <<'XML'
+mkdir -p build/test-results/scraperTest
+cat > build/test-results/scraperTest/TEST-pass.xml <<'XML'
 <testsuite><testcase classname="WidgetTest" name="passes" time="0.25"/></testsuite>
 XML
 `)
-	stdout, stderr, exitCode := execute(t, root, []string{"--", "--tests", "WidgetTest"})
+	stdout, stderr, exitCode := execute(t, root, []string{"scraperTest", "--", "--tests", "WidgetTest"})
 	if exitCode != 0 {
 		t.Fatalf("Execute() exit = %d, output:\n%s", exitCode, stdout)
 	}
 	document := decodeDocument(t, stdout)
 	assertField(t, document, "status", "passed")
 	assertField(t, document, "kind", "test")
+	assertField(t, document, "task", "scraperTest")
 	assertField(t, document, "gradle_exit", "0")
 	if strings.Contains(stdout, "raw stdout noise") || strings.Contains(stdout, "raw stderr noise") {
 		t.Fatalf("structured stdout leaked Gradle noise:\n%s", stdout)
 	}
-	if !strings.Contains(stderr, "running Gradle tests") {
+	if !strings.Contains(stderr, "running Gradle task scraperTest") {
 		t.Fatalf("stderr = %q, want progress message", stderr)
 	}
 	args, err := os.ReadFile(filepath.Join(root, "args.txt"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(args) != "test\n--console=plain\n--tests\nWidgetTest\n" {
+	if string(args) != "scraperTest\n--console=plain\n--tests\nWidgetTest\n" {
+		t.Fatalf("Gradle args = %q", args)
+	}
+}
+
+func TestApplicationDefaultsToTestTask(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	writeGradlew(t, root, `#!/bin/sh
+printf '%s\n' "$@" > args.txt
+mkdir -p build/test-results/test
+cat > build/test-results/test/TEST-pass.xml <<'XML'
+<testsuite><testcase classname="WidgetTest" name="passes"/></testsuite>
+XML
+`)
+	stdout, _, exitCode := execute(t, root, nil)
+	if exitCode != 0 {
+		t.Fatalf("Execute() exit = %d, output:\n%s", exitCode, stdout)
+	}
+	document := decodeDocument(t, stdout)
+	assertField(t, document, "task", "test")
+	args, err := os.ReadFile(filepath.Join(root, "args.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(args) != "test\n--console=plain\n" {
 		t.Fatalf("Gradle args = %q", args)
 	}
 }
@@ -133,6 +160,25 @@ func TestApplicationReturnsStructuredMissingWrapperError(t *testing.T) {
 	}
 }
 
+func TestApplicationHelpDescribesOptionalTask(t *testing.T) {
+	t.Parallel()
+
+	stdout, _, exitCode := execute(t, t.TempDir(), []string{"--help"})
+	if exitCode != 0 {
+		t.Fatalf("Execute() exit = %d, output:\n%s", exitCode, stdout)
+	}
+	for _, expected := range []string{
+		"gradletest-axi [task] [--full]",
+		"default `test` task",
+		"gradletest-axi integrationTest",
+		"gradletest-axi scraperTest -- --tests ExampleTest",
+	} {
+		if !strings.Contains(stdout, expected) {
+			t.Fatalf("help output lacks %q:\n%s", expected, stdout)
+		}
+	}
+}
+
 func TestApplicationReportsWrapperStartFailure(t *testing.T) {
 	t.Parallel()
 
@@ -189,6 +235,7 @@ func TestApplicationReportsZeroTestsExplicitly(t *testing.T) {
 		t.Fatalf("output lacks explicit zero-test guidance:\n%s", stdout)
 	}
 }
+
 func execute(t *testing.T, root string, args []string) (string, string, int) {
 	t.Helper()
 	var stdout bytes.Buffer

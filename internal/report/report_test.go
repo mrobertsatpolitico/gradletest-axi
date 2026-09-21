@@ -16,6 +16,7 @@ func TestRenderDocumentGolden(t *testing.T) {
 	document := Document{
 		Status:     "failed",
 		Kind:       "test",
+		Task:       "integrationTest",
 		ExitCode:   1,
 		GradleExit: &gradleExit,
 		Duration:   1250 * time.Millisecond,
@@ -33,6 +34,7 @@ func TestRenderDocumentGolden(t *testing.T) {
 	}
 	want := `status: failed
 kind: test
+task: integrationTest
 exit_code: 1
 gradle_exit: 1
 duration_ms: 1250

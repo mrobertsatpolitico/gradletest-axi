@@ -45,6 +45,35 @@ func TestParseFilesAggregatesSuitesAndFailures(t *testing.T) {
 	}
 }
 
+func TestDiscoverFilesSelectsTaskAcrossProjects(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	unit := writeResult(t, root, "module-a", `<testsuite><testcase name="unit"/></testsuite>`)
+	integrationA := writeTaskResult(
+		t,
+		root,
+		"module-a",
+		"integrationTest",
+		`<testsuite><testcase name="integration-a"/></testsuite>`,
+	)
+	integrationB := writeTaskResult(
+		t,
+		root,
+		"module-b",
+		"integrationTest",
+		`<testsuite><testcase name="integration-b"/></testsuite>`,
+	)
+
+	got, err := DiscoverFiles(root, ":service:integrationTest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || got[0] != integrationA || got[1] != integrationB {
+		t.Fatalf("DiscoverFiles() = %q, want [%q %q]; unit report was %q", got, integrationA, integrationB, unit)
+	}
+}
+
 func TestParseFilesReportsMalformedXML(t *testing.T) {
 	t.Parallel()
 
@@ -59,18 +88,19 @@ func TestChangedFilesExcludesStaleReports(t *testing.T) {
 	t.Parallel()
 
 	root := t.TempDir()
-	stale := writeResult(t, root, "stale", `<testsuite><testcase name="old"/></testsuite>`)
-	changed := writeResult(t, root, "changed", `<testsuite><testcase name="before"/></testsuite>`)
-	before, err := TakeSnapshot(root)
+	unit := writeResult(t, root, "unit", `<testsuite><testcase name="unit"/></testsuite>`)
+	stale := writeTaskResult(t, root, "stale", "integrationTest", `<testsuite><testcase name="old"/></testsuite>`)
+	changed := writeTaskResult(t, root, "changed", "integrationTest", `<testsuite><testcase name="before"/></testsuite>`)
+	before, err := TakeSnapshot(root, "integrationTest")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(changed, []byte(`<testsuite><testcase name="after"/></testsuite>`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	fresh := writeResult(t, root, "fresh", `<testsuite><testcase name="new"/></testsuite>`)
+	fresh := writeTaskResult(t, root, "fresh", "integrationTest", `<testsuite><testcase name="new"/></testsuite>`)
 
-	files, err := DiscoverFiles(root)
+	files, err := DiscoverFiles(root, "integrationTest")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,13 +109,18 @@ func TestChangedFilesExcludesStaleReports(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(got) != 2 || got[0] != changed || got[1] != fresh {
-		t.Fatalf("ChangedFiles() = %q, want [%q %q]; stale was %q", got, changed, fresh, stale)
+		t.Fatalf("ChangedFiles() = %q, want [%q %q]; stale was %q and unit was %q", got, changed, fresh, stale, unit)
 	}
 }
 
 func writeResult(t *testing.T, root, module, content string) string {
 	t.Helper()
-	directory := filepath.Join(root, module, "build", "test-results", "test")
+	return writeTaskResult(t, root, module, "test", content)
+}
+
+func writeTaskResult(t *testing.T, root, module, task, content string) string {
+	t.Helper()
+	directory := filepath.Join(root, module, "build", "test-results", task)
 	if err := os.MkdirAll(directory, 0o755); err != nil {
 		t.Fatal(err)
 	}

@@ -3,11 +3,16 @@ package cli
 import (
 	"fmt"
 	"strings"
+	"unicode"
 )
 
-const Usage = "gradletest-axi [--full] [-- <gradle-test-args...>]"
+const (
+	DefaultTask = "test"
+	Usage       = "gradletest-axi [task] [--full] [-- <task-args...>]"
+)
 
 type Options struct {
+	Task        string
 	Full        bool
 	Help        bool
 	Version     bool
@@ -23,7 +28,8 @@ func (e *UsageError) Error() string {
 }
 
 func Parse(args []string) (Options, error) {
-	var options Options
+	options := Options{Task: DefaultTask}
+	taskSet := false
 	for index := 0; index < len(args); index++ {
 		argument := args[index]
 		switch argument {
@@ -37,14 +43,52 @@ func Parse(args []string) (Options, error) {
 		case "--version", "-v":
 			options.Version = true
 		default:
-			hint := ""
 			if strings.HasPrefix(argument, "-") {
-				hint = fmt.Sprintf("; pass Gradle test arguments after `--`, for example `%s -- --tests ExampleTest`", Usage)
+				return Options{}, &UsageError{
+					Message: fmt.Sprintf(
+						"unknown argument %q; pass Gradle task arguments after `--`, for example `%s -- --tests ExampleTest`",
+						argument,
+						Usage,
+					),
+				}
 			}
-			return Options{}, &UsageError{
-				Message: fmt.Sprintf("unknown argument %q%s", argument, hint),
+			if taskSet {
+				return Options{}, &UsageError{
+					Message: fmt.Sprintf("unexpected argument %q; select only one Gradle test task", argument),
+				}
 			}
+			if err := validateTask(argument); err != nil {
+				return Options{}, err
+			}
+			options.Task = argument
+			taskSet = true
 		}
 	}
 	return options, nil
+}
+
+func validateTask(task string) error {
+	if task == "" || strings.ContainsAny(task, `/\*?[`) {
+		return &UsageError{Message: fmt.Sprintf("invalid Gradle test task %q", task)}
+	}
+	for _, value := range task {
+		if unicode.IsControl(value) || unicode.IsSpace(value) {
+			return &UsageError{
+				Message: fmt.Sprintf("invalid Gradle test task %q", task),
+			}
+		}
+	}
+	segments := strings.Split(task, ":")
+	if segments[0] == "" {
+		segments = segments[1:]
+	}
+	if len(segments) == 0 {
+		return &UsageError{Message: fmt.Sprintf("invalid Gradle test task %q", task)}
+	}
+	for _, segment := range segments {
+		if segment == "" || segment == "." || segment == ".." {
+			return &UsageError{Message: fmt.Sprintf("invalid Gradle test task %q", task)}
+		}
+	}
+	return nil
 }

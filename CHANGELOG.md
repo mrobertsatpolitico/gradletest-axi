@@ -8,6 +8,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-09-21
+
 ### Changed
 
 - Discover JUnit XML created or rewritten by the current Gradle invocation in
@@ -46,6 +48,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - The CLI contract is declared stable for the first `v1.0.0` release.
 - The development, CI, and source-install baseline now requires Go 1.27.1.
 
-[Unreleased]: https://github.com/mrobertsatpolitico/gradletest-axi/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/mrobertsatpolitico/gradletest-axi/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/mrobertsatpolitico/gradletest-axi/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/mrobertsatpolitico/gradletest-axi/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/mrobertsatpolitico/gradletest-axi/releases/tag/v1.0.0
